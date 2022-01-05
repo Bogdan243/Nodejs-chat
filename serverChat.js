@@ -7,21 +7,23 @@ const port = process.env.PORT || 3000
 
 app.use(express.static(__dirname + '/public'))
 
+app.use(bodyParser.urlencoded({ extended: true }))
+app.use(bodyParser.json())
 
 app.get('/', function (req, res) {
   res.sendFile(__dirname + '/public/main.html')
 })
 
-const urlencodedParser = bodyParser.urlencoded({
-  extended: false,
-})
+let messageList = []
 
-app.post('/', urlencodedParser, function (req, res) {
+app.post('/', function (req, res) {
 
   if (!req.body) return res.sendStatus(400)
   console.log(req.body)
+  messageList.push(req.body.userMessage)
+  res.json(req.body)
 })
 
-app.listen(3000, function () {
+app.listen(port, function () {
   console.log('Example app listening on port 3000!')
 })
