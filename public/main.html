@@ -1,74 +1,37 @@
 <!DOCTYPE html>
-<html style="font-size: 16px;">
-
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta charset="utf-8">
-  <meta name="keywords" content="Sample Headline">
-  <meta name="description" content="">
-  <meta name="page_type" content="np-template-header-footer-from-plugin">
-  <link rel="stylesheet" href="nicepage.css" media="screen">
-  <link rel="stylesheet" href="main.css" media="screen">
-  <script class="u-script" type="text/javascript" src="jquery.js" defer=""></script>
-  <script class="u-script" type="text/javascript" src="nicepage.js" defer=""></script>
-  <meta name="generator" content="Nicepage 4.2.6, nicepage.com">
-  <link id="u-theme-google-font" rel="stylesheet"
-    href="https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i,900,900i|Open+Sans:300,300i,400,400i,600,600i,700,700i,800,800i">
-
-
-  <script type="application/ld+json">{
-		"@context": "http://schema.org",
-		"@type": "Organization",
-		"name": ""
-}</script>
-
-  <meta name="theme-color" content="#478ac9">
-  <meta property="og:title" content="Главная">
-  <meta property="og:type" content="website">
-</head>
-
-<body class="u-body">
-  <header class="u-clearfix u-header u-palette-4-base u-header" id="sec-6512">
-    <div class="u-clearfix u-sheet u-sheet-1">
-      <h3 class="u-align-center u-headline u-text u-text-default u-text-1">
-        <a href="/">SimpleChat</a>
-      </h3>
-    </div>
-  </header>
-  <section class="u-clearfix u-section-1" id="sec-e491">
-    <div class="u-align-left u-clearfix u-sheet u-sheet-1">
-      <div class="u-expanded-width u-form u-form-1">
-        <form id="chatForm" class="u-clearfix u-form-spacing-10 u-form-vertical u-inner-form" source="custom"
-          name="registerForm" style="padding: 10px;">
-          <div class="u-form-group u-form-name">
-            <label for="name-5ee5" class="u-form-control-hidden u-label"></label>
-            <input type="text" placeholder="Введите Ваше имя" name="userName"
-              class="u-border-1 u-border-grey-30 u-input u-input-rectangle u-white" required="">
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Messenger</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <section class="messenger">
+      <header class="messenger-header">
+        <div class="logo">Messenger</div>
+      </header>
+      <main class="main-area">
+        <section class="users-section">
+          <div class="user-list"><ul class="users"></ul></div>
+          <div class="user-footer">
+            <button class="invite-new-user btn">Invite new user</button>
           </div>
-          <div class="u-form-group u-form-message">
-            <label for="email-5ee5" class="u-form-control-hidden u-label"></label>
-            <textarea placeholder="Сообщения чата" id="publicChat" disabled="disabled"
-              class="u-border-1 u-border-grey-30 u-input u-input-rectangle u-white" required="required"
-              rows="20"></textarea>
+        </section>
+        <section class="chat-section">
+          <div class="messages-list"><ul class="messages"></ul></div>
+          <div class="chat-footer">
+            <textarea
+              class="chat-input-msg"
+              placeholder="Your message here..."
+            ></textarea>
+            <button class="btn send-msg">Send</button>
           </div>
-          <div class="u-form-group u-form-message">
-            <label for="message-5ee5" class="u-form-control-hidden u-label"></label>
-            <textarea placeholder="Введите Ваше сообщение" rows="5" cols="50" name="message"
-              class="u-border-1 u-border-grey-30 u-input u-input-rectangle u-white" required=""></textarea>
-          </div>
-          <div class="u-align-left u-form-group u-form-submit">
-            <button id="submit" href="#" class="u-btn u-btn-submit u-button-style u-btn-1">Отправить</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </section>
-  <footer class="u-align-center u-clearfix u-footer u-palette-4-base u-footer" id="sec-a222">
-    <div class="u-align-left u-clearfix u-sheet u-sheet-1"></div>
-  </footer>
-  <script src="ajax.js" type="text/javascript">
+        </section>
+      </main>
+    </section>
 
-  </script>
-</body>
-
+    <script src="script.js"></script>
+  </body>
 </html>
