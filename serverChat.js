@@ -1,49 +1,104 @@
+
 const express = require('express')
 const app = express()
 const http = require('http').createServer(app)
 const io = require('socket.io')(http)
 
-var app = express()
+const bodyParser = require('body-parser')
+const cookieParser = require('cookie-parser')
+
 
 const port = process.env.PORT || 3000
+const host = 'localhost'
 
-app.use(express.static(__dirname + '/public/autorization'))
-app.use(express.static(__dirname + '/public/chat'))
+app.use(express.static(__dirname + '/public'))
 
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
+
+app.use(cookieParser('secret key'))
 
 app.get('/', function (req, res) {
   res.sendFile(__dirname + '/public/autorization/index.html')
 })
 
+app.get('/socket.io', function (req, res) {
+  res.sendFile(__dirname + '/public/chat/socket.io')
+})
+
 let users = [];
 
-app.post('/register', urlencodedParser, function (
-  request,
-  response
-) {
-  if (!request.body) return response.sendStatus(400)
-  console.log(request.body)
+app.post('/', function (req, res) {
+  if (!req.body) return res.sendStatus(400)
+  console.log(req.body)
 
   users.push({
-    userName: request.body.userName,
-    pasword: request.body.userPassword
+    userName: req.body.userName,
+    pasword: req.body.userPassword,
+    fullname: '',
+    age: '',
+    phone: '',
+    email: '',
+    avatar: 'https://pbs.twimg.com/media/C4k-7OdWYAAPLid.jpg',
+    city: '',
+    gender: '',
+    state: '',
+    msgList: []
   })
-  
+
+  res.cookie('userName', req.body.userName, {
+    maxAge: 3600 * 1,
+    secure: true,
+  })
+
+  res.redirect(303, '/reg')
+})
+
+app.post('/get-user', function (req, res) {
+  if (!req.body) return res.sendStatus(400)
+  console.log(req.body)
+
+  res.clearCookie()
+
+  let userData = JSON.stringify(users.find(item => item.userName == req.body.name) || {state: 'not found'})
+  res.json(userData)
+})
+
+app.get('/reg', function (req, res) {
   res.sendFile(__dirname + '/public/chat/main.html')
 })
 
-let messageList = []
+let clients = []
 
-app.post('/', function (req, res) {
+io.on('connection', (socket) => {
+  console.log(`Client with id ${socket.id} connected`)
+  clients.push(socket)
 
-  if (!req.body) return res.sendStatus(400)
-  console.log(req.body)
-  messageList.push(req.body.userMessage)
-  res.json(req.body)
+  socket.emit('message', "I'm server")
+
+  socket.on('message', (message) => {
+    console.log('Message: ', message)
+    message = JSON.parse(message)
+    let currentListtener = users.find(item => item.userName == message.currentListtener) 
+    
+    let responseSocket = clients.find(item => item.id == currentListtener.socketId) 
+    console.log(`responseSocket: ${responseSocket.id} with msg: ${message.msgText}`)
+    responseSocket.emit('message', message.msgText)
+  })
+
+  socket.on('connectionMessage', (message) => {
+    console.log('Connection with server: ', message)
+
+    let user = users.find(item => item.userName == message)
+    user.socketId = socket.id
+  })
+
+  socket.on('disconnect', () => {
+    clients.splice(clients.indexOf(socket.id), 1)
+    console.log(`Client with id ${socket.id} disconnected`)
+  })
 })
 
-app.listen(port, function () {
-  console.log('Example app listening on port 3000!')
-})
+http.listen(port, function () {
+  console.log(`Server listens http://${host}:${port}`);
+});

@@ -1,18 +1,57 @@
-/*
-  This code requires refactoring, but this will make it look overcomplicated even more :(
 
-  TODO:
-    - create classes for User, Measage, StatusMessage, etc.
-      - add proper method checks - if argument is instance of User, Measage, StatusMessage, etc.
-    - split code into MV* architecture, separate common/helper functions...
-    - get rid of "magic numbers"
-    - use better/proper method/variable naming and code explanation
-    - create helper method to create DOM elements, set attributes, textContnte, etc.
-    - etc.
-*/
+class CustomSocket {
+  constructor() {
+    this.socket = io()
+
+  }
+
+  // signalFromServer(messageHandler) {
+  //   this.socket.on('message', (message) => {
+  //     console.log('Message from server: ', message)
+  //     messageHandler(message)
+  //   })
+  // }
+
+  sendMessageToServer(currentUser, currentListtener, msgText) {
+    let msg = JSON.stringify({
+      currentUser,
+      currentListtener,
+      msgText
+    })
+    this.socket.emit('message', msg)
+  }
+
+  connectionMessageToServer(msg) {
+    this.socket.emit('connectionMessage', msg)
+  }
+}
 
 class Messanger {
-  constructor() {
+  constructor(customSocket) {
+    this.userSocket = customSocket;
+
+    // this.userSocket.signalFromServer(this.addMSGToDOM)
+    this.userSocket.socket.on('message', (message) => {
+      console.log(message)
+      if(message == 'I\'m server') {
+
+      } else {
+        this.addMSGToDOM(this.currentListtener, message, false)
+      }
+    })
+
+    this.currentListtener = {
+      fullName: '',
+      userName: '',
+      age: '',
+      phone: '',
+      email: '',
+      avatar: '',
+      city: '',
+      gender: '',
+      msgList: ''
+    };
+
     document.querySelector(".invite-new-user").onclick = () =>
       this.getNewUser();
 
@@ -25,9 +64,15 @@ class Messanger {
     /*
       Probably would be better to load this mock info about "current user" from local .json file
     */
+    let userName = this.getCookie('userName');
+
+    console.log(userName);
+
+    this.userSocket.connectionMessageToServer(userName);
+
     this.currentUser = {
-      fullname: "Oleh Melnyk",
-      username: "olehmelnyk",
+      fullName: "Oleh Melnyk",
+      userName: userName,
       age: 28,
       phone: "+380631215555",
       email: "oleh.melnyk@gmail.com",
@@ -63,74 +108,62 @@ class Messanger {
   /**
    * Gets new user info from 3rd party REST API
    */
-  getNewUser() {
-    this.makeRequest("https://randomuser.me/api/")
-      .then(data => {
-        const userData = data.results[0];
+  async getNewUser() {
+    const nameOfNewUser = prompt('Who is is?')
 
-        const fullname = `${this.capitalize(
-          userData.name.first
-        )} ${this.capitalize(userData.name.last)}`;
+    let userData = JSON.stringify({
+      name: nameOfNewUser
+    })
 
-        // user age is often over 45, but profile pictures look young,
-        // so, let's make this fake data look a bit more realistic ;)
-        const age = userData.dob.age;
-        const userAge = age > 45 ? Math.floor(age / 2) : age;
+    let responsedUserData = { state: 'not found' }
 
-        const user = {
-          fullname,
-          username: userData.login.username,
-          age: userAge,
-          phone: userData.cell,
-          email: userData.email,
-          avatar: userData.picture.medium,
-          city: this.capitalize(userData.location.city),
-          gender: userData.gender
-        };
 
-        user.msgIntervalId = this.setNewMSGInterval(user); // this is the ID we need to pass to clearInterval() function to cancel interval
+    let response = await fetch('/get-user', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json;charset=utf-8'
+      },
+      body: userData
+    })
 
-        this.addUserToDOM(user);
-        this.addStatusMSG(
-          `${user.fullname} joined group chat at ${this.getCurrentTime()}`
-        );
-      })
-      .catch(error => console.error(error.message));
+    responsedUserData = JSON.parse(await response.json())
+    this.currentListtener = responsedUserData
+    console.log(responsedUserData)
+
+    if (!responsedUserData || responsedUserData.state == 'not found') return
+
+
+    const user = {
+      fullName: responsedUserData.userName,
+      userName: responsedUserData.username,
+      age: responsedUserData.userAge,
+      phone: responsedUserData.cell,
+      email: responsedUserData.email,
+      avatar: responsedUserData.avatar,
+      city: responsedUserData.location,
+      gender: responsedUserData.gender,
+      msgList: responsedUserData.msgList
+    };
+
+
+    this.addUserToDOM(user);
+    this.addStatusMSG(
+      `${user.fullname} joined chat at ${this.getCurrentTime()}`
+    )
+
+    if (user.msgList.length > 0) {
+      user.msgList.forEach(function (item) {
+        addMSGToDOM(user, item)
+      });
+    }
+
   }
 
   /**
    * Gets new message from 3rd party REST API
    */
   getNewMessage() {
-    const paragraphsCount = this.getRandomNumber(1, 5);
-    const paragraphMinLength = this.getRandomNumber(1, 5);
-    const paragraphMaxLength = this.getRandomNumber(10, 25);
 
-    return this.makeRequest(
-      `https://www.randomtext.me/api/gibberish/p-${paragraphsCount}/${paragraphMinLength}-${paragraphMaxLength}`
-    )
-      .then(message => message.text_out)
-      .catch(error => console.error(error.message));
-  }
-
-  /**
-   * Creates interval that adds new messgaes from the user to messanger
-   * @param {Object} user with all info about user, including full name, age, etc.
-   * @param {number} interval 5-30 seconds (5000-30000 ms) interval to add new message from the user
-   * @returns interval id - used at clearInterval() method once needed
-   */
-  setNewMSGInterval(user, interval = this.getRandomNumber(5, 30) * 1000) {
-    this.setUserIsTypingInterval(user, interval);
-
-    // intercal that adds messages
-    const intervalId = setInterval(() => {
-      this.addMSGToDOM(user);
-
-      this.usersIsTyping = this.usersIsTyping.filter(u => u !== user.fullname);
-      this.updateIsTypingStatus();
-    }, interval);
-
-    return intervalId;
   }
 
   /**************************************
@@ -159,36 +192,34 @@ class Messanger {
    * @param {boolean} isMe false by default; true means message was sent by current user (and displayed on the right with different bg color)
    * @param {string} myMSG message from current user
    */
-  addMSGToDOM(user, isMe = false, myMSG = "🤣") {
-    this.getNewMessage().then(messageText => {
-      const msg = document.createElement("li");
-      const avatar = document.createElement("img");
-      const msgText = document.createElement("div");
-      const msgTime = document.createElement("div");
+  addMSGToDOM(user, messageText = '', isMe = false, myMSG = "🤣") {
+    const msg = document.createElement("li");
+    const avatar = document.createElement("img");
+    const msgText = document.createElement("div");
+    const msgTime = document.createElement("div");
 
-      msg.classList.add("msg");
-      if (isMe) {
-        msg.classList.add("me");
-      }
+    msg.classList.add("msg");
+    if (isMe) {
+      msg.classList.add("me");
+    }
 
-      avatar.classList.add("user-avatar");
-      avatar.src = user.avatar;
-      avatar.alt = user.fullname;
-      avatar.title = user.fullname;
+    avatar.classList.add("user-avatar");
+    avatar.src = user.avatar;
+    avatar.alt = user.fullname;
+    avatar.title = user.fullname;
 
-      msgText.classList.add("msg-text");
-      msgText.innerHTML = isMe ? myMSG : messageText;
+    msgText.classList.add("msg-text");
+    msgText.innerHTML = isMe ? myMSG : messageText;
 
-      msgTime.classList.add("msg-time");
-      msgTime.textContent = this.getCurrentTime();
+    msgTime.classList.add("msg-time");
+    msgTime.textContent = this.getCurrentTime();
 
-      msg.appendChild(avatar);
-      msg.appendChild(msgText);
-      msg.appendChild(msgTime);
+    msg.appendChild(avatar);
+    msg.appendChild(msgText);
+    msg.appendChild(msgTime);
 
-      this.messages.appendChild(msg);
-      this.scrollToBottom(this.messages);
-    });
+    this.messages.appendChild(msg);
+    this.scrollToBottom(this.messages);
   }
 
   /**
@@ -198,7 +229,8 @@ class Messanger {
     const msg = this.textInput.value.trim();
 
     if (msg) {
-      this.addMSGToDOM(this.currentUser, true, this.textInput.value.trim());
+      this.userSocket.sendMessageToServer(this.currentUser.userName, this.currentListtener.userName, msg);
+      this.addMSGToDOM(this.currentUser, '', true, this.textInput.value.trim(),);
       this.textInput.value = "";
       this.textInput.focus();
     }
@@ -213,13 +245,12 @@ class Messanger {
     const avatar = document.createElement("img");
     const userInfo = document.createElement("div");
     const userFullname = document.createElement("div");
-    const userEmail = document.createElement("div");
+    // const userEmail = document.createElement("div");
     const userActions = document.createElement("div");
     const muteUser = document.createElement("button");
 
-    const bio = `${user.fullname} is a ${user.age} years old ${
-      user.gender
-    } from ${user.city}.`;
+    const bio = `${user.fullname} is a ${user.age} years old ${user.gender
+      } from ${user.city}.`;
     const aboutUser = `${user.age} years • ${user.gender} • ${user.city}`;
 
     li.classList.add("user");
@@ -232,15 +263,15 @@ class Messanger {
 
     userInfo.classList.add("user-info");
     userFullname.classList.add("user-fullname");
-    userEmail.classList.add("user-email");
+    // userEmail.classList.add("user-email");
 
     userFullname.textContent = user.fullname;
-    userEmail.textContent = aboutUser; //user.email;
+    // userEmail.textContent = aboutUser; //user.email;
 
     userActions.classList.add("user-actions");
 
     muteUser.classList.add("btn");
-    muteUser.textContent = "Mute";
+    muteUser.textContent = "Remove";
     muteUser.title = "Remove user";
 
     // remove user after click on "Mute" btn
@@ -249,7 +280,7 @@ class Messanger {
     };
 
     userInfo.appendChild(userFullname);
-    userInfo.appendChild(userEmail);
+    // userInfo.appendChild(userEmail);
 
     userActions.appendChild(muteUser);
 
@@ -258,6 +289,10 @@ class Messanger {
     li.appendChild(userActions);
 
     this.userList.appendChild(li);
+
+    // li.onclick = () => {
+
+    // };
   }
 
   /**
@@ -394,7 +429,16 @@ class Messanger {
       element.scrollTop = element.scrollHeight; // auto scroll to bottom
     }
   }
+
+  getCookie(name) {
+    let matches = document.cookie.match(new RegExp(
+      "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+    ));
+    return matches ? decodeURIComponent(matches[1]) : undefined;
+  }
 }
 
 // initialization
-const messanger = new Messanger();
+const mySocket = new CustomSocket();
+const messanger = new Messanger(mySocket);
+
