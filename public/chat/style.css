@@ -111,7 +111,7 @@ body {
 }
 
 .user-fullname {
-  font-weight: bold;
+  font-family: "Arial";
   font-size: 1.1em;
   text-transform: capitalize;
 }

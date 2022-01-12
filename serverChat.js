@@ -78,11 +78,19 @@ io.on('connection', (socket) => {
 
   socket.on('message', (message) => {
     console.log('Message: ', message)
+
     message = JSON.parse(message)
-    let currentListtener = users.find(item => item.userName == message.currentListtener) 
-    
-    let responseSocket = clients.find(item => item.id == currentListtener.socketId) 
+
+    let currentUser = users.find(item => item.userName == message.currentUser)
+    currentUser.msgList.push(message);
+
+    let currentListtener = users.find(item => item.userName == message.currentListtener)
+    currentListtener.msgList.push(message);
+
+    let responseSocket = clients.find(item => item.id == currentListtener.socketId)
+
     console.log(`responseSocket: ${responseSocket.id} with msg: ${message.msgText}`)
+
     responseSocket.emit('message', message.msgText)
   })
 

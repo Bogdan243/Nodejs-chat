@@ -5,19 +5,8 @@ class CustomSocket {
 
   }
 
-  // signalFromServer(messageHandler) {
-  //   this.socket.on('message', (message) => {
-  //     console.log('Message from server: ', message)
-  //     messageHandler(message)
-  //   })
-  // }
-
-  sendMessageToServer(currentUser, currentListtener, msgText) {
-    let msg = JSON.stringify({
-      currentUser,
-      currentListtener,
-      msgText
-    })
+  sendMessageToServer(fullMessage) {
+    let msg = JSON.stringify(fullMessage)
     this.socket.emit('message', msg)
   }
 
@@ -33,10 +22,10 @@ class Messanger {
     // this.userSocket.signalFromServer(this.addMSGToDOM)
     this.userSocket.socket.on('message', (message) => {
       console.log(message)
-      if(message == 'I\'m server') {
+      if (message == 'I\'m server') {
 
       } else {
-        this.addMSGToDOM(this.currentListtener, message, false)
+        this.addMSGToDOM(this.currentListtener, message, false, this.getCurrentTime())
       }
     })
 
@@ -49,7 +38,7 @@ class Messanger {
       avatar: '',
       city: '',
       gender: '',
-      msgList: ''
+      msgList: []
     };
 
     document.querySelector(".invite-new-user").onclick = () =>
@@ -66,10 +55,6 @@ class Messanger {
     */
     let userName = this.getCookie('userName');
 
-    console.log(userName);
-
-    this.userSocket.connectionMessageToServer(userName);
-
     this.currentUser = {
       fullName: "Oleh Melnyk",
       userName: userName,
@@ -78,8 +63,17 @@ class Messanger {
       email: "oleh.melnyk@gmail.com",
       avatar: "https://avatars.githubusercontent.com/olehmelnyk",
       city: "Lviv",
-      gender: "male"
+      gender: "male",
+      msgList: []
     };
+
+    console.log(userName);
+
+    this.downloadedUserList = [this.currentUser];
+
+    this.userSocket.connectionMessageToServer(userName);
+
+
 
     // send user msg on "Send" btn press
     this.sendBtn.onclick = () => {
@@ -135,7 +129,7 @@ class Messanger {
 
     const user = {
       fullName: responsedUserData.userName,
-      userName: responsedUserData.username,
+      userName: responsedUserData.userName,
       age: responsedUserData.userAge,
       phone: responsedUserData.cell,
       email: responsedUserData.email,
@@ -144,19 +138,45 @@ class Messanger {
       gender: responsedUserData.gender,
       msgList: responsedUserData.msgList
     };
+ 
+    let foundNewUserInDownloaded = this.downloadedUserList.find(item => item.userName == user.userName);
+    if(foundNewUserInDownloaded) {
+      foundNewUserInDownloaded = user;
+    } else {
+      this.downloadedUserList.push(user);
+    }
+    
 
 
     this.addUserToDOM(user);
     this.addStatusMSG(
-      `${user.fullname} joined chat at ${this.getCurrentTime()}`
+      `${user.fullName} joined chat at ${this.getCurrentTime()}`
     )
 
-    if (user.msgList.length > 0) {
-      user.msgList.forEach(function (item) {
-        addMSGToDOM(user, item)
+    let messagesClass = document.querySelectorAll('ul.messages');
+    let msgList = messagesClass[0].querySelectorAll('li');
+    msgList.forEach(elem => {
+      console.log(elem);
+      elem.remove();
+    })
+
+    this.currentListtener = user;
+
+    this.insertMessages(this.currentUser, this.currentListtener, this);
+
+  }
+
+  insertMessages(user, currentListtener, messanger) {
+    if (currentListtener.msgList.length > 0) {
+      currentListtener.msgList.forEach(function (item) {
+        if (item.currentUser == messanger.currentUser.userName) {
+          messanger.addMSGToDOM(user, '', true, item.msgText, item.msgTime);
+        } else {
+          messanger.addMSGToDOM(currentListtener, item.msgText, false, '',item.msgTime);
+        }
+
       });
     }
-
   }
 
   /**
@@ -192,7 +212,7 @@ class Messanger {
    * @param {boolean} isMe false by default; true means message was sent by current user (and displayed on the right with different bg color)
    * @param {string} myMSG message from current user
    */
-  addMSGToDOM(user, messageText = '', isMe = false, myMSG = "🤣") {
+  addMSGToDOM(user, messageText = '', isMe = false, myMSG = "🤣", time) {
     const msg = document.createElement("li");
     const avatar = document.createElement("img");
     const msgText = document.createElement("div");
@@ -212,7 +232,7 @@ class Messanger {
     msgText.innerHTML = isMe ? myMSG : messageText;
 
     msgTime.classList.add("msg-time");
-    msgTime.textContent = this.getCurrentTime();
+    msgTime.textContent = time;
 
     msg.appendChild(avatar);
     msg.appendChild(msgText);
@@ -229,8 +249,16 @@ class Messanger {
     const msg = this.textInput.value.trim();
 
     if (msg) {
-      this.userSocket.sendMessageToServer(this.currentUser.userName, this.currentListtener.userName, msg);
-      this.addMSGToDOM(this.currentUser, '', true, this.textInput.value.trim(),);
+      let fullMessage = {
+        currentUser: this.currentUser.userName,
+        currentListtener: this.currentListtener.userName,
+        msgTime: this.getCurrentTime(),
+        msgText: msg
+      }
+
+      this.userSocket.sendMessageToServer(fullMessage);
+      this.addMSGToDOM(this.currentUser, '', true, msg, this.getCurrentTime());
+      this.currentListtener.msgList.push(fullMessage) 
       this.textInput.value = "";
       this.textInput.focus();
     }
@@ -258,14 +286,14 @@ class Messanger {
 
     avatar.classList.add("user-avatar");
     avatar.src = user.avatar;
-    avatar.alt = user.fullname;
-    avatar.title = user.fullname;
+    avatar.alt = user.fullName;
+    avatar.title = user.userName;
 
     userInfo.classList.add("user-info");
     userFullname.classList.add("user-fullname");
     // userEmail.classList.add("user-email");
 
-    userFullname.textContent = user.fullname;
+    userFullname.textContent = user.fullName;
     // userEmail.textContent = aboutUser; //user.email;
 
     userActions.classList.add("user-actions");
@@ -290,9 +318,25 @@ class Messanger {
 
     this.userList.appendChild(li);
 
-    // li.onclick = () => {
+    li.onclick = (event) => {
+      let selectedUserName = event.currentTarget.querySelector('img.user-avatar').title
+      
+      if(selectedUserName != this.currentListtener.userName) {
+        let messagesClass = document.querySelectorAll('ul.messages');
+        let msgList = messagesClass[0].querySelectorAll('li');
 
-    // };
+        msgList.forEach(elem => {
+          console.log(elem);
+          elem.remove();
+        })
+
+        let selectedUser = this.downloadedUserList.find(item => item.userName == selectedUserName)
+  
+        this.currentListtener = selectedUser;
+
+        this.insertMessages(this.currentUser, this.currentListtener, this);
+      }
+    };
   }
 
   /**
@@ -308,7 +352,7 @@ class Messanger {
 
       clearInterval(user.msgIntervalId);
 
-      this.usersIsTyping = this.usersIsTyping.filter(
+      this.usersIsTyping = this.usersIsTyping.find(
         item => item !== user.fullname
       );
       clearInterval(user.isTypingId);
