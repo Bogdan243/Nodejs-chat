@@ -6,6 +6,7 @@ const io = require('socket.io')(http)
 
 const bodyParser = require('body-parser')
 const cookieParser = require('cookie-parser')
+const { Socket } = require('socket.io')
 
 
 const port = process.env.PORT || 3000
@@ -32,20 +33,25 @@ app.post('/', function (req, res) {
   if (!req.body) return res.sendStatus(400)
   console.log(req.body)
 
-  users.push({
-    userName: req.body.userName,
-    pasword: req.body.userPassword,
-    fullname: '',
-    age: '',
-    phone: '',
-    email: '',
-    avatar: 'https://pbs.twimg.com/media/C4k-7OdWYAAPLid.jpg',
-    city: '',
-    gender: '',
-    state: '',
-    msgList: []
-  })
+  let requestedUser = users.find(item => item.userName == req.body.userName)
 
+  if(!requestedUser) {
+    users.push({
+      userName: req.body.userName,
+      pasword: req.body.userPassword,
+      fullname: '',
+      age: '',
+      phone: '',
+      email: '',
+      avatar: 'https://pbs.twimg.com/media/C4k-7OdWYAAPLid.jpg',
+      city: '',
+      gender: '',
+      state: '',
+      msgList: [],
+      chatWith: []
+    })
+  }
+  
   res.cookie('userName', req.body.userName, {
     maxAge: 3600 * 1,
     secure: true,
@@ -59,13 +65,17 @@ app.post('/get-user', function (req, res) {
   console.log(req.body)
 
   res.clearCookie()
+  
+  let requestObj = req.body 
+  let currentUser = users.find(item => item.userName == requestObj.nameOfCurrentUser)
+  currentUser.chatWith.push(requestObj.userName)
 
-  let userData = JSON.stringify(users.find(item => item.userName == req.body.name) || {state: 'not found'})
+  let userData = JSON.stringify(users.find(item => item.userName == requestObj.userName) || {state: 'not found'})
   res.json(userData)
 })
 
 app.get('/reg', function (req, res) {
-  res.sendFile(__dirname + '/public/chat/main.html')
+  res.sendFile(__dir + '/public/chat/main.html')
 })
 
 let clients = []
@@ -91,7 +101,7 @@ io.on('connection', (socket) => {
 
     console.log(`responseSocket: ${responseSocket.id} with msg: ${message.msgText}`)
 
-    responseSocket.emit('message', message.msgText)
+    responseSocket.emit('message', JSON.stringify(message))
   })
 
   socket.on('connectionMessage', (message) => {
@@ -99,6 +109,8 @@ io.on('connection', (socket) => {
 
     let user = users.find(item => item.userName == message)
     user.socketId = socket.id
+
+    socket.emit('currentUserData', JSON.stringify(user))
   })
 
   socket.on('disconnect', () => {

@@ -1,8 +1,21 @@
+//Refactoring task: Need add user storage
+//Remove coockie using, and use socket
 
 class CustomSocket {
   constructor() {
     this.socket = io()
 
+  }
+
+  recivengMsgFromServer(calback = () => { }) {
+    this.socket.on('message', (message) => {
+      console.log(message)
+      if (message == 'I\'m server') {
+
+      } else {
+        calback(message);
+      }
+    })
   }
 
   sendMessageToServer(fullMessage) {
@@ -13,21 +26,65 @@ class CustomSocket {
   connectionMessageToServer(msg) {
     this.socket.emit('connectionMessage', msg)
   }
+
+  currentUserData(callback) {
+    this.socket.on('currentUserData', data => {
+      callback(JSON.parse(data))
+    })
+  }
+
+
 }
 
 class Messanger {
   constructor(customSocket) {
     this.userSocket = customSocket;
 
-    // this.userSocket.signalFromServer(this.addMSGToDOM)
-    this.userSocket.socket.on('message', (message) => {
-      console.log(message)
-      if (message == 'I\'m server') {
-
+    this.userSocket.recivengMsgFromServer(msg => {
+      msg = JSON.parse(msg);
+      if (msg.currentListtener == this.currentListtener.userName) {
+        this.addMSGToDOM(this.currentListtener, msg.msgText, false, this.getCurrentTime());
+        this.currentListtener.msgList.push(msg);
       } else {
-        this.addMSGToDOM(this.currentListtener, message, false, this.getCurrentTime())
+        let senderUser = this.downloadedUserList.find(item => item.userName == msg.currentUser); 
+
+        if(!senderUser) {
+          this.getNewUser(msg.currentUser);
+        } else {
+          senderUser.msgList.push(msg);
+        }
+        
       }
+
     })
+
+    let userName = this.getCookie('userName');
+    console.log('Current user: ', userName);
+    this.userSocket.connectionMessageToServer(userName);
+    
+    this.userSocket.currentUserData(user => {
+      this.currentUser = user;
+      this.downloadedUserList = [this.currentUser];
+      this.currentUser.chatWith.forEach(item => {
+        this.getNewUser(item);
+      })
+    })
+
+    
+    // this.currentUser = {
+    //   fullName: "Oleh Melnyk",
+    //   userName: userName,
+    //   age: 28,
+    //   phone: "+380631215555",
+    //   email: "oleh.melnyk@gmail.com",
+    //   avatar: "https://avatars.githubusercontent.com/olehmelnyk",
+    //   city: "Lviv",
+    //   gender: "male",
+    //   msgList: [],
+    //   chatWith: []
+    // };
+
+    
 
     this.currentListtener = {
       fullName: '',
@@ -38,8 +95,10 @@ class Messanger {
       avatar: '',
       city: '',
       gender: '',
-      msgList: []
+      msgList: [],
+      chatWith: []
     };
+
 
     document.querySelector(".invite-new-user").onclick = () =>
       this.getNewUser();
@@ -49,30 +108,6 @@ class Messanger {
 
     this.textInput = document.querySelector(".chat-input-msg");
     this.sendBtn = document.querySelector(".send-msg");
-
-    /*
-      Probably would be better to load this mock info about "current user" from local .json file
-    */
-    let userName = this.getCookie('userName');
-
-    this.currentUser = {
-      fullName: "Oleh Melnyk",
-      userName: userName,
-      age: 28,
-      phone: "+380631215555",
-      email: "oleh.melnyk@gmail.com",
-      avatar: "https://avatars.githubusercontent.com/olehmelnyk",
-      city: "Lviv",
-      gender: "male",
-      msgList: []
-    };
-
-    console.log(userName);
-
-    this.downloadedUserList = [this.currentUser];
-
-    this.userSocket.connectionMessageToServer(userName);
-
 
 
     // send user msg on "Send" btn press
@@ -102,15 +137,55 @@ class Messanger {
   /**
    * Gets new user info from 3rd party REST API
    */
-  async getNewUser() {
-    const nameOfNewUser = prompt('Who is is?')
+  async getNewUser(nameOfNewUser = '', invitedUser = true) {
 
+    if (nameOfNewUser == '') {
+      nameOfNewUser = prompt('Who is it?');
+    }
+
+    let user = await this.requestNewUser(nameOfNewUser);
+    console.log(user);
+
+    if (!user || user.state == 'not found') return
+
+
+    let foundNewUserInDownloaded = this.downloadedUserList.find(item => item.userName == user.userName);
+    if (foundNewUserInDownloaded) {
+      foundNewUserInDownloaded = user;
+    } else {
+      this.downloadedUserList.push(user);
+    }
+
+    this.addUserToDOM(user);
+    this.addStatusMSG(
+      `${user.fullName} joined chat at ${this.getCurrentTime()}`
+    )
+
+    if (invitedUser) {
+      this.currentListtener = user;
+
+      this.removeMessagesFromChat();
+      this.insertMessages(this.currentUser, this.currentListtener, this);
+    }
+
+
+    return user;
+  }
+
+  removeMessagesFromChat() {
+    let messagesClass = document.querySelectorAll('ul.messages');
+    let msgList = messagesClass[0].querySelectorAll('li');
+    msgList.forEach(elem => {
+      console.log(elem);
+      elem.remove();
+    });
+  }
+
+  async requestNewUser(nameOfNewUser) {
     let userData = JSON.stringify({
-      name: nameOfNewUser
+      userName: nameOfNewUser,
+      nameOfCurrentUser: this.currentUser.userName
     })
-
-    let responsedUserData = { state: 'not found' }
-
 
     let response = await fetch('/get-user', {
       method: 'POST',
@@ -118,15 +193,10 @@ class Messanger {
         'Content-Type': 'application/json;charset=utf-8'
       },
       body: userData
-    })
+    });
 
-    responsedUserData = JSON.parse(await response.json())
-    this.currentListtener = responsedUserData
-    console.log(responsedUserData)
-
-    if (!responsedUserData || responsedUserData.state == 'not found') return
-
-
+    let responsedUserData = JSON.parse(await response.json()) || { state: 'not found' };
+    //Handle empty or damaged request 
     const user = {
       fullName: responsedUserData.userName,
       userName: responsedUserData.userName,
@@ -136,34 +206,11 @@ class Messanger {
       avatar: responsedUserData.avatar,
       city: responsedUserData.location,
       gender: responsedUserData.gender,
-      msgList: responsedUserData.msgList
+      msgList: responsedUserData.msgList,
+      state: ''
     };
- 
-    let foundNewUserInDownloaded = this.downloadedUserList.find(item => item.userName == user.userName);
-    if(foundNewUserInDownloaded) {
-      foundNewUserInDownloaded = user;
-    } else {
-      this.downloadedUserList.push(user);
-    }
-    
 
-
-    this.addUserToDOM(user);
-    this.addStatusMSG(
-      `${user.fullName} joined chat at ${this.getCurrentTime()}`
-    )
-
-    let messagesClass = document.querySelectorAll('ul.messages');
-    let msgList = messagesClass[0].querySelectorAll('li');
-    msgList.forEach(elem => {
-      console.log(elem);
-      elem.remove();
-    })
-
-    this.currentListtener = user;
-
-    this.insertMessages(this.currentUser, this.currentListtener, this);
-
+    return user;
   }
 
   insertMessages(user, currentListtener, messanger) {
@@ -172,7 +219,7 @@ class Messanger {
         if (item.currentUser == messanger.currentUser.userName) {
           messanger.addMSGToDOM(user, '', true, item.msgText, item.msgTime);
         } else {
-          messanger.addMSGToDOM(currentListtener, item.msgText, false, '',item.msgTime);
+          messanger.addMSGToDOM(currentListtener, item.msgText, false, '', item.msgTime);
         }
 
       });
@@ -258,7 +305,7 @@ class Messanger {
 
       this.userSocket.sendMessageToServer(fullMessage);
       this.addMSGToDOM(this.currentUser, '', true, msg, this.getCurrentTime());
-      this.currentListtener.msgList.push(fullMessage) 
+      this.currentListtener.msgList.push(fullMessage)
       this.textInput.value = "";
       this.textInput.focus();
     }
@@ -275,7 +322,7 @@ class Messanger {
     const userFullname = document.createElement("div");
     // const userEmail = document.createElement("div");
     const userActions = document.createElement("div");
-    const muteUser = document.createElement("button");
+    const removeUser = document.createElement("button");
 
     const bio = `${user.fullname} is a ${user.age} years old ${user.gender
       } from ${user.city}.`;
@@ -298,19 +345,20 @@ class Messanger {
 
     userActions.classList.add("user-actions");
 
-    muteUser.classList.add("btn");
-    muteUser.textContent = "Remove";
-    muteUser.title = "Remove user";
+    removeUser.classList.add("btn");
+    removeUser.textContent = "Remove";
+    removeUser.title = "Remove user";
 
     // remove user after click on "Mute" btn
-    muteUser.onclick = () => {
+    removeUser.onclick = () => {
       this.removeUser(user, li);
+      this.removeMessagesFromChat();
     };
 
     userInfo.appendChild(userFullname);
     // userInfo.appendChild(userEmail);
 
-    userActions.appendChild(muteUser);
+    userActions.appendChild(removeUser);
 
     li.appendChild(avatar);
     li.appendChild(userInfo);
@@ -320,18 +368,11 @@ class Messanger {
 
     li.onclick = (event) => {
       let selectedUserName = event.currentTarget.querySelector('img.user-avatar').title
-      
-      if(selectedUserName != this.currentListtener.userName) {
-        let messagesClass = document.querySelectorAll('ul.messages');
-        let msgList = messagesClass[0].querySelectorAll('li');
 
-        msgList.forEach(elem => {
-          console.log(elem);
-          elem.remove();
-        })
+      if (selectedUserName != this.currentListtener.userName) {
+        this.removeMessagesFromChat();
 
         let selectedUser = this.downloadedUserList.find(item => item.userName == selectedUserName)
-  
         this.currentListtener = selectedUser;
 
         this.insertMessages(this.currentUser, this.currentListtener, this);
@@ -346,20 +387,34 @@ class Messanger {
    */
   removeUser(user, li) {
     if (li instanceof HTMLElement && li.nodeName === "LI") {
-      this.addStatusMSG(
-        `${user.fullname} left group chat at ${this.getCurrentTime()}`
-      );
+      // this.addStatusMSG(
+      //   `${user.fullname} left group chat at ${this.getCurrentTime()}`
+      // );
 
-      clearInterval(user.msgIntervalId);
+      // clearInterval(user.msgIntervalId);
 
-      this.usersIsTyping = this.usersIsTyping.find(
-        item => item !== user.fullname
-      );
-      clearInterval(user.isTypingId);
-
+      // this.usersIsTyping = this.usersIsTyping.find(
+      //   item => item !== user.fullname
+      // );
+      // clearInterval(user.isTypingId);
+      
       li.remove();
-
-      this.updateIsTypingStatus();
+      this.downloadedUserList = this.downloadedUserList.filter(item => item.userName != user.userName)
+      if(user.userName == this.currentListtener.userName) {
+        this.currentListtener = {
+          fullName: '',
+          userName: '',
+          age: '',
+          phone: '',
+          email: '',
+          avatar: '',
+          city: '',
+          gender: '',
+          msgList: [],
+          chatWith: []
+        };
+      }
+      // this.updateIsTypingStatus();
     }
   }
 
@@ -405,56 +460,6 @@ class Messanger {
   /**************************************
        Reusable common helper methods
   ***************************************/
-  /**
-   * Makes XMLHTTTPRequest and returns promise with XHR
-   * @param {string} url
-   * @param {string} method
-   * @param {boolean} async request
-   * @returns {Promise}
-   */
-  makeRequest(url, method = "GET", async = true) {
-    const xhr = new XMLHttpRequest();
-
-    xhr.open(method, url, async);
-    xhr.send();
-
-    return new Promise((resolve, reject) => {
-      xhr.onreadystatechange = () => {
-        if (xhr.readyState !== 4) return;
-
-        if (xhr.status !== 200) {
-          reject(`${xhr.status}: ${xhr.statusText}`);
-        } else {
-          resolve(JSON.parse(xhr.responseText));
-        }
-      };
-    });
-  }
-
-  /**
-   * Returns a random number in set mix-max range
-   * @param {number} min
-   * @param {number} max
-   * @returns {number} random number in desired range
-   */
-  getRandomNumber(min = 1, max = 30) {
-    return Math.floor(Math.random() * (max - min) + min);
-  }
-
-  /**
-   * Returns string where each word is capitalised
-   * @param {string} string
-   * @returns {string}
-   */
-  capitalize(string) {
-    if (typeof string === "string" && string.trim()) {
-      return string
-        .trim()
-        .split(" ")
-        .map(word => word[0].toUpperCase() + word.slice(1))
-        .join(" ");
-    }
-  }
 
   /**
    * Returns current time in format hh:mm:ss
