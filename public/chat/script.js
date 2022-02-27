@@ -1,6 +1,5 @@
 //Refactoring task: Need add user storage
 //Remove coockie using, and use socket
-
 class CustomSocket {
   constructor() {
     this.socket = io()
@@ -46,59 +45,22 @@ class Messanger {
         this.addMSGToDOM(this.currentListtener, msg.msgText, false, this.getCurrentTime());
         this.currentListtener.msgList.push(msg);
       } else {
-        let senderUser = this.downloadedUserList.find(item => item.userName == msg.currentUser); 
+        let senderUser = this.downloadedUserList.find(item => item.userName == msg.currentUser);
 
-        if(!senderUser) {
+        if (!senderUser) {
           this.getNewUser(msg.currentUser);
         } else {
           senderUser.msgList.push(msg);
         }
-        
+
       }
 
     })
 
-    let userName = this.getCookie('userName');
-    console.log('Current user: ', userName);
-    this.userSocket.connectionMessageToServer(userName);
-    
-    this.userSocket.currentUserData(user => {
-      this.currentUser = user;
-      this.downloadedUserList = [this.currentUser];
-      this.currentUser.chatWith.forEach(item => {
-        this.getNewUser(item);
-      })
-    })
+    this.currentUser = {}
+    this.currentListtener = {}
 
-    
-    // this.currentUser = {
-    //   fullName: "Oleh Melnyk",
-    //   userName: userName,
-    //   age: 28,
-    //   phone: "+380631215555",
-    //   email: "oleh.melnyk@gmail.com",
-    //   avatar: "https://avatars.githubusercontent.com/olehmelnyk",
-    //   city: "Lviv",
-    //   gender: "male",
-    //   msgList: [],
-    //   chatWith: []
-    // };
-
-    
-
-    this.currentListtener = {
-      fullName: '',
-      userName: '',
-      age: '',
-      phone: '',
-      email: '',
-      avatar: '',
-      city: '',
-      gender: '',
-      msgList: [],
-      chatWith: []
-    };
-
+    this.requestCurrentUser()
 
     document.querySelector(".invite-new-user").onclick = () =>
       this.getNewUser();
@@ -137,6 +99,16 @@ class Messanger {
   /**
    * Gets new user info from 3rd party REST API
    */
+  promiseCallback(user) {
+    this.currentUser = user
+    this.currentListtener = user
+    this.downloadedUserList = [this.currentUser]
+    this.currentUser.chatWith.forEach(item => {
+        this.getNewUser(item);
+    })
+    console.log(this.currentUser)
+  }
+
   async getNewUser(nameOfNewUser = '', invitedUser = true) {
 
     if (nameOfNewUser == '') {
@@ -181,6 +153,37 @@ class Messanger {
     });
   }
 
+  async requestCurrentUser() {
+
+    let response = await fetch('/getUserAfterLogin', {
+      method: 'get',
+      headers: {
+        'Content-Type': 'application/json;charset=utf-8'
+      }
+    });
+
+    let responsedUserData = JSON.parse(await response.json()) || { state: 'not found' };
+    //Handle empty or damaged request 
+    const user = {
+      fullName: responsedUserData.userName,
+      userName: responsedUserData.userName,
+      age: responsedUserData.userAge,
+      phone: responsedUserData.cell,
+      email: responsedUserData.email,
+      avatar: responsedUserData.avatar,
+      city: responsedUserData.location,
+      gender: responsedUserData.gender,
+      msgList: responsedUserData.msgList,
+      state: '',
+      msgList: [],
+      chatWith: []
+    };
+
+    this.promiseCallback( user )
+
+    return user;
+  }
+
   async requestNewUser(nameOfNewUser) {
     let userData = JSON.stringify({
       userName: nameOfNewUser,
@@ -207,7 +210,9 @@ class Messanger {
       city: responsedUserData.location,
       gender: responsedUserData.gender,
       msgList: responsedUserData.msgList,
-      state: ''
+      state: '',
+      msgList: [],
+      chatWith: []
     };
 
     return user;
@@ -397,10 +402,10 @@ class Messanger {
       //   item => item !== user.fullname
       // );
       // clearInterval(user.isTypingId);
-      
+
       li.remove();
       this.downloadedUserList = this.downloadedUserList.filter(item => item.userName != user.userName)
-      if(user.userName == this.currentListtener.userName) {
+      if (user.userName == this.currentListtener.userName) {
         this.currentListtener = {
           fullName: '',
           userName: '',

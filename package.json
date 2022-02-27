@@ -2,7 +2,7 @@
   "name": "chat",
   "version": "1.0.0",
   "description": "",
-  "main": "serverChat.js",
+  "main": "server.js",
   "scripts": {
     "test": "mocha",
     "start": "nodemon app.js"
@@ -10,11 +10,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@appland/appmap-agent-js": "^9.4.4",
     "body-parser": "^1.19.1",
+    "connect-flash": "^0.1.1",
     "cookie-parser": "^1.4.6",
     "express": "^4.17.2",
     "express-handlebars": "^6.0.2",
+    "express-session": "^1.17.2",
+    "mongodb": "^4.4.0",
+    "passport": "^0.5.2",
+    "passport-local": "^1.0.0",
     "socket.io": "^4.4.1"
   }
 }

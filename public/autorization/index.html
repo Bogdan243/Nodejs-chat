@@ -1,20 +1,34 @@
 <!DOCTYPE html>
-<html lang="en" >
+<html lang="en">
 
+<head>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="/autorization/style.css"></link>
-  <title>Login Form</title>
-    
-  <div class="login">
-	<h1>Autorization</h1>
-    <form action="/" method="post">
-    	<input type="text" name="userName" placeholder="Username" required="required" />
-        <input type="password" name="userPassword" placeholder="Password" required="required" />
-        <button type="submit" class="btn btn-primary btn-block btn-large">Log in</button>
-    </form>
-</div>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="/autorization/style.css" />
+</head>
 
-  
-
+<body>
+  <div class="login-page">
+    <div class="form">
+      <form class="register-form">
+        <input class="registerUsername"type="text" placeholder="name" name="userName"/>
+        <input class="registerPassword" type="password" placeholder="password" name="password"/>
+        <input class="registerEmail"type="text" placeholder="email address" name="emailAddress"/>
+        <button type="button" onclick='addUser()'>create</button>
+        <p class="message">Already registered? <a href="#">Sign In</a></p>
+      </form>
+      <form class="login-form" action="/login/password" method="post">
+        <input class="username" type="text" name="userName" placeholder="username" />
+        <input class="password" type="password" name="password" placeholder="password" />
+        <button type="submit">login</button>
+        <p class="message">Not registered? <a href="#">Create an account</a></p>
+      </form>
+    </div>
+  </div>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+  <script src="/autorization/script.js"></script>
+</body>
 
 </html>
