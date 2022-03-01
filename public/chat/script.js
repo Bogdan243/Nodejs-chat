@@ -106,6 +106,7 @@ class Messanger {
     this.currentUser.chatWith.forEach(item => {
         this.getNewUser(item);
     })
+    this.userSocket.connectionMessageToServer({userName: user.userName})
     console.log(this.currentUser)
   }
 
@@ -179,7 +180,8 @@ class Messanger {
       chatWith: []
     };
 
-    this.promiseCallback( user )
+    var callbackWithBindedContext = this.promiseCallback.bind( this )
+    callbackWithBindedContext( user )
 
     return user;
   }
@@ -190,7 +192,7 @@ class Messanger {
       nameOfCurrentUser: this.currentUser.userName
     })
 
-    let response = await fetch('/get-user', {
+    let response = await fetch('/getUser', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json;charset=utf-8'
@@ -277,8 +279,8 @@ class Messanger {
 
     avatar.classList.add("user-avatar");
     avatar.src = user.avatar;
-    avatar.alt = user.fullname;
-    avatar.title = user.fullname;
+    avatar.alt = user.fullName;
+    avatar.title = user.fullName;
 
     msgText.classList.add("msg-text");
     msgText.innerHTML = isMe ? myMSG : messageText;
