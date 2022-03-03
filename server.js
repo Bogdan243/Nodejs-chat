@@ -38,3 +38,7 @@ var host = 'localhost'
 http.listen(port, function () {
   console.log(`Server listens http://${host}:${port}`);
 });
+
+function toDo() {
+  // проверить добавление сообщения на сервере получателю, при отправке, при получении пользователя в улиенте список сообщений пуст
+}

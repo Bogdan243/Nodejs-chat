@@ -39,23 +39,8 @@ class Messanger {
   constructor(customSocket) {
     this.userSocket = customSocket;
 
-    this.userSocket.recivengMsgFromServer(msg => {
-      msg = JSON.parse(msg);
-      if (msg.currentListtener == this.currentListtener.userName) {
-        this.addMSGToDOM(this.currentListtener, msg.msgText, false, this.getCurrentTime());
-        this.currentListtener.msgList.push(msg);
-      } else {
-        let senderUser = this.downloadedUserList.find(item => item.userName == msg.currentUser);
-
-        if (!senderUser) {
-          this.getNewUser(msg.currentUser);
-        } else {
-          senderUser.msgList.push(msg);
-        }
-
-      }
-
-    })
+    var addMsgFromServerWithBindedContext = this.addMsgFromServer.bind(this)
+    this.userSocket.recivengMsgFromServer(addMsgFromServerWithBindedContext)
 
     this.currentUser = {}
     this.currentListtener = {}
@@ -104,7 +89,7 @@ class Messanger {
     this.currentListtener = user
     this.downloadedUserList = [this.currentUser]
     this.currentUser.chatWith.forEach(item => {
-        this.getNewUser(item);
+        this.getNewUser(item, false);
     })
     this.userSocket.connectionMessageToServer({userName: user.userName})
     console.log(this.currentUser)
@@ -152,6 +137,37 @@ class Messanger {
       console.log(elem);
       elem.remove();
     });
+  }
+
+  addMsgFromServer(msg) {
+    msg = JSON.parse(msg);
+    if(this.currentListtener.userName == msg.currentUser) {
+      this.currentListtener.msgList.push(msg)
+      this.addMSGToDOM(this.currentListtener, msg.msgText, false, this.getCurrentTime())
+    } else {
+      let senderUser = this.downloadedUserList.find(item => item.userName == msg.currentUser)
+
+      if (!senderUser) {
+        this.getNewUser(msg.currentUser, false) 
+      } else {
+        senderUser.msgList.push(msg);
+      }
+    }
+
+    // if (msg.currentListtener == this.currentListtener.userName) {
+    //   this.currentListtener.msgList.push(msg);
+    //   this.addMSGToDOM(this.currentListtener, msg.msgText, false, this.getCurrentTime());
+    // } else {
+    //   let senderUser = this.downloadedUserList.find(item => item.userName == msg.currentUser);
+
+    //   if (!senderUser) {
+    //     this.getNewUser(msg.currentUser)
+        
+    //   } else {
+    //     senderUser.msgList.push(msg);
+    //   }
+
+    // }
   }
 
   async requestCurrentUser() {
